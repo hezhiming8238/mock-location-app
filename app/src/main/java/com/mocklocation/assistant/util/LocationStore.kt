@@ -47,6 +47,12 @@ class LocationStore(context: Context) {
         prefs.edit().putBoolean(KEY_ENABLE_JITTER, enabled).apply()
     }
 
+    fun isOverlayEnabled(): Boolean = prefs.getBoolean(KEY_ENABLE_OVERLAY, true)
+
+    fun setOverlayEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_ENABLE_OVERLAY, enabled).apply()
+    }
+
     fun getAltitudeMeters(): Double =
         prefs.getString(KEY_ALTITUDE_METERS, null)?.toDoubleOrNull() ?: 45.0
 
@@ -161,6 +167,7 @@ class LocationStore(context: Context) {
         private const val KEY_LAST_LNG = "last_wgs_lng"
         private const val KEY_LAST_LABEL = "last_label"
         private const val KEY_ENABLE_JITTER = "enable_jitter"
+        private const val KEY_ENABLE_OVERLAY = "enable_overlay"
         private const val KEY_ALTITUDE_METERS = "altitude_meters"
         private const val KEY_STEP_METERS = "step_meters"
         private const val KEY_FAVORITES = "favorites_json"

@@ -76,6 +76,15 @@
                 android:orientation="horizontal">
 
                 <com.google.android.material.chip.Chip
+                    android:id="@+id/chipAntiDrift"
+                    style="@style/Widget.Material3.Chip.Assist"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:text="@string/chip_anti_drift"
+                    android:textSize="12sp" />
+
+                <com.google.android.material.chip.Chip
                     android:id="@+id/chipCities"
                     style="@style/Widget.Material3.Chip.Assist"
                     android:layout_width="wrap_content"
@@ -165,6 +174,54 @@
                 android:insetTop="0dp"
                 android:insetBottom="0dp"
                 android:text="@string/permission_banner_action"
+                android:textColor="@color/colorPrimaryDark"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Anti-Snapback Diagnostics Banner (Wi-Fi / WLAN Scan / Battery / Overlay) -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardAntiDriftBanner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="6dp"
+        android:layout_marginEnd="10dp"
+        android:visibility="gone"
+        app:cardBackgroundColor="@color/statusIdleBg"
+        app:cardCornerRadius="10dp"
+        app:cardElevation="1dp"
+        app:strokeColor="@color/colorPrimary"
+        app:strokeWidth="1dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingTop="6dp"
+            android:paddingEnd="8dp"
+            android:paddingBottom="6dp">
+
+            <TextView
+                android:id="@+id/tvAntiDriftSummary"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textColor="@color/colorPrimaryDark"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnFixAntiDrift"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:text="@string/anti_drift_banner_action"
                 android:textColor="@color/colorPrimaryDark"
                 android:textSize="12sp"
                 android:textStyle="bold" />

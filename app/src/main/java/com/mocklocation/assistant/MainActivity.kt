@@ -93,6 +93,8 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refreshPermissionBanner()
+        refreshAntiDriftBanner()
+        MockLocationService.refreshOverlay(this)
     }
 
     override fun onDestroy() {
@@ -130,6 +132,8 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        binding.chipAntiDrift.setOnClickListener { showAntiDriftDialog() }
+        binding.btnFixAntiDrift.setOnClickListener { showAntiDriftDialog() }
         binding.chipCities.setOnClickListener { showCitiesDialog() }
         binding.chipManualCoord.setOnClickListener { showManualCoordDialog() }
         binding.chipFavorites.setOnClickListener { showFavoritesAndHistoryDialog() }
@@ -520,6 +524,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showHelpDialog() {
+        val vivoHint = if (MockPermissionHelper.isVivoDevice()) {
+            "【检测到 vivo / iQOO 手机防跳回必设】\n" +
+                "• 多任务界面将「虚拟定位助手」下拉加锁，防止切高德后被冻结。\n" +
+                "• 设置 → 应用与权限 → 应用管理 → 虚拟定位助手 → 电量 → 允许后台高耗电。\n" +
+                "• 点击顶部「防跳回设置」，关闭 Wi-Fi 与系统「WLAN 和蓝牙扫描」，并开启悬浮窗保活胶囊。\n\n"
+        } else {
+            ""
+        }
         MaterialAlertDialogBuilder(this)
             .setTitle("使用说明与防漂移提示")
             .setMessage(
@@ -529,14 +541,87 @@ class MainActivity : AppCompatActivity() {
                     "   进入「设置 → 开发者选项 → 选择模拟位置信息应用」，选择「虚拟定位助手」。\n\n" +
                     "3. 开始使用：\n" +
                     "   在地图上点击任意位置（或搜索/输入经纬度），点击「开始虚拟定位」，再打开高德、百度、腾讯或 Google 地图即可显示目标位置。\n\n" +
-                    "4. 防止位置漂移：\n" +
-                    "   • 本应用已自动完成高德/百度/WGS-84 坐标系纠偏，选点即所见。\n" +
-                    "   • 若部分手机仍偶尔跳回真实位置，可在系统定位设置中暂时关闭“Wi-Fi 和蓝牙扫描”以提高稳定性，并允许本应用后台常驻。"
+                    vivoHint +
+                    "4. 关于高德防跳回与微信说明：\n" +
+                    "   • 若高德 1~2 秒跳回真实位置，通常是开启了 Wi-Fi/WLAN 扫描或后台被系统冻结。请点击「防跳回设置」逐项优化。\n" +
+                    "   • 微信内置 isFromMockProvider() 模拟位置检测与基站交叉校验，未 Root 手机通过系统开发者选项无法绕过微信的实时位置检测。"
             )
-            .setPositiveButton("去开发者选项") { _, _ ->
-                MockPermissionHelper.openDeveloperSettings(this)
+            .setPositiveButton("打开防跳回设置") { _, _ ->
+                showAntiDriftDialog()
             }
             .setNegativeButton("知道了", null)
+            .show()
+    }
+
+    private fun refreshAntiDriftBanner() {
+        val wifiOn = MockPermissionHelper.isWifiEnabled(this)
+        val scanOn = MockPermissionHelper.isWifiScanAlwaysEnabled(this)
+        val batteryRestricted = !MockPermissionHelper.isIgnoringBatteryOptimizations(this)
+        val overlayMissing = store.isOverlayEnabled() && !MockPermissionHelper.canDrawOverlays(this)
+
+        val issues = mutableListOf<String>()
+        if (wifiOn) issues.add("Wi-Fi未关")
+        if (scanOn) issues.add("WLAN扫描未关")
+        if (batteryRestricted) issues.add("未设省电无限制")
+        if (overlayMissing) issues.add("未开悬浮窗保活")
+
+        if (issues.isEmpty()) {
+            binding.cardAntiDriftBanner.visibility = View.GONE
+        } else {
+            binding.cardAntiDriftBanner.visibility = View.VISIBLE
+            binding.tvAntiDriftSummary.text =
+                "防跳回提醒：${issues.joinToString("、")}（可能导致高德 1~2 秒跳回真实位置）"
+        }
+    }
+
+    private fun showAntiDriftDialog() {
+        val wifiOn = MockPermissionHelper.isWifiEnabled(this)
+        val scanOn = MockPermissionHelper.isWifiScanAlwaysEnabled(this)
+        val batteryOk = MockPermissionHelper.isIgnoringBatteryOptimizations(this)
+        val overlayGranted = MockPermissionHelper.canDrawOverlays(this)
+        val overlayEnabled = store.isOverlayEnabled()
+        val isVivo = MockPermissionHelper.isVivoDevice()
+
+        val options = arrayOf(
+            "${if (!wifiOn) "✅" else "⚠️"} 1. 关闭 Wi-Fi 开关（防路由器 MAC 反查跳回）\n    当前：${if (wifiOn) "已开启（建议关闭，改用移动数据）" else "已关闭"}",
+            "${if (!scanOn) "✅" else "⚠️"} 2. 关闭系统「WLAN 和蓝牙扫描」\n    当前：${if (scanOn) "后台扫描开启中（点击前往关闭）" else "已关闭"}",
+            "${if (batteryOk) "✅" else "⚠️"} 3. 忽略电池优化（防止后台降频）\n    当前：${if (batteryOk) "已设为无限制" else "受省电策略限制（点击授权）"}",
+            "${if (overlayGranted && overlayEnabled) "✅" else "⚠️"} 4. 悬浮窗保活胶囊（防止切高德后被冻结）\n    当前：${
+                when {
+                    !overlayGranted -> "未授予悬浮窗权限（点击授权）"
+                    overlayEnabled -> "已开启（点击可暂时关闭）"
+                    else -> "已关闭（点击开启）"
+                }
+            }",
+            "📱 5. 应用后台详情设置" + if (isVivo) {
+                "（vivo 必设：电量→允许后台高耗电；并在多任务栏下拉锁定本应用）"
+            } else {
+                "（允许后台高耗电 / 自启动）"
+            }
+        )
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle(if (isVivo) "vivo 防跳回诊断与优化" else "防跳回诊断与优化")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> MockPermissionHelper.openWifiSettings(this)
+                    1 -> MockPermissionHelper.openLocationScanningSettings(this)
+                    2 -> MockPermissionHelper.requestIgnoreBatteryOptimizations(this)
+                    3 -> {
+                        if (!overlayGranted) {
+                            MockPermissionHelper.openOverlaySettings(this)
+                        } else {
+                            val next = !overlayEnabled
+                            store.setOverlayEnabled(next)
+                            MockLocationService.refreshOverlay(this)
+                            refreshAntiDriftBanner()
+                            showToast(if (next) "已开启悬浮窗保活胶囊" else "已关闭悬浮窗保活胶囊")
+                        }
+                    }
+                    4 -> MockPermissionHelper.openAppDetailsSettings(this)
+                }
+            }
+            .setNegativeButton("关闭", null)
             .show()
     }
 
