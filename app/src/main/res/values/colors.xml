@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#1D4ED8</color>
+    <color name="colorPrimaryDark">#1E40AF</color>
+    <color name="colorSecondary">#16A34A</color>
+    <color name="colorSurface">#FFFFFF</color>
+    <color name="colorBackground">#F1F5F9</color>
+    <color name="textPrimary">#0F172A</color>
+    <color name="textSecondary">#475569</color>
+    <color name="textMuted">#64748B</color>
+    <color name="bannerWarningBg">#FEF3C7</color>
+    <color name="bannerWarningBorder">#F59E0B</color>
+    <color name="bannerWarningText">#92400E</color>
+    <color name="statusIdleBg">#EFF6FF</color>
+    <color name="statusActiveBg">#DCFCE7</color>
+    <color name="statusActiveText">#166534</color>
+    <color name="dangerRed">#DC2626</color>
+    <color name="dividerColor">#E2E8F0</color>
+    <color name="ic_launcher_bg">#1D4ED8</color>
+</resources>

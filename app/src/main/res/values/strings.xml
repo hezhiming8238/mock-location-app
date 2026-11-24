@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">虚拟定位助手</string>
+    <string name="search_hint">搜索地点、城市或粘贴经纬度 (如 39.9042, 116.4074)</string>
+    <string name="btn_search">搜索</string>
+    <string name="chip_cities">热门城市</string>
+    <string name="chip_manual_coord">输入坐标</string>
+    <string name="chip_favorites">收藏/历史</string>
+    <string name="chip_nudge">微调/行走</string>
+    <string name="chip_help">使用帮助</string>
+    <string name="permission_banner_title">请先在「开发者选项」中将本应用设为“模拟位置信息应用”</string>
+    <string name="permission_banner_action">去设置</string>
+    <string name="status_idle">未开启模拟 · 可点击地图或搜索选点</string>
+    <string name="status_active">模拟定位运行中 · 已推送 %1$d 次</string>
+    <string name="status_walking">模拟行走中 (%.1f m/s) · 已推送 %2$d 次</string>
+    <string name="btn_start_mock">开始虚拟定位</string>
+    <string name="btn_update_mock">更新到此位置</string>
+    <string name="btn_stop_mock">停止</string>
+    <string name="action_stop_mock">停止定位</string>
+    <string name="notification_channel_name">虚拟定位保活通知</string>
+    <string name="notification_channel_desc">用于在后台持续稳定推送系统模拟位置</string>
+    <string name="notification_title_active">虚拟定位运行中：%1$s</string>
+    <string name="notification_title_walking">模拟行走中：%1$s</string>
+    <string name="err_missing_location_permission">缺少定位权限，请先允许应用获取位置权限</string>
+    <string name="err_mock_permission_required">未获模拟位置权限：请在手机“开发者选项 → 选择模拟位置信息应用”中选中本应用</string>
+    <string name="err_mock_permission_revoked">模拟定位权限已失效，请重新在开发者选项中选择本应用</string>
+    <string name="manual_coord_title">手动输入经纬度</string>
+    <string name="manual_coord_hint_lat">纬度 (Latitude)，例如 39.908823</string>
+    <string name="manual_coord_hint_lng">经度 (Longitude)，例如 116.397470</string>
+    <string name="manual_coord_system_label">输入坐标所属坐标系：</string>
+    <string name="coord_sys_gcj02">高德 / 腾讯 (GCJ-02，自动纠偏)</string>
+    <string name="coord_sys_wgs84">国际标准 GPS (WGS-84)</string>
+    <string name="coord_sys_bd09">百度地图 (BD-09，自动纠偏)</string>
+    <string name="nudge_step_label">步长 %1$d 米</string>
+    <string name="walk_toggle_start">模拟行走</string>
+    <string name="walk_toggle_stop">停止行走</string>
+</resources>

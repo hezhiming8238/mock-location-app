@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="18dp">
+
+    <EditText
+        android:id="@+id/etInputLat"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/manual_coord_hint_lat"
+        android:importantForAutofill="no"
+        android:inputType="numberDecimal|numberSigned"
+        android:maxLines="1" />
+
+    <EditText
+        android:id="@+id/etInputLng"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:hint="@string/manual_coord_hint_lng"
+        android:importantForAutofill="no"
+        android:inputType="numberDecimal|numberSigned"
+        android:maxLines="1" />
+
+    <EditText
+        android:id="@+id/etInputLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:hint="备注名称（可选，如：公司 / 景点）"
+        android:importantForAutofill="no"
+        android:inputType="text"
+        android:maxLines="1" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:text="@string/manual_coord_system_label"
+        android:textColor="@color/textPrimary"
+        android:textSize="13sp"
+        android:textStyle="bold" />
+
+    <RadioGroup
+        android:id="@+id/rgCoordSystem"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp">
+
+        <RadioButton
+            android:id="@+id/rbGcj02"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="@string/coord_sys_gcj02"
+            android:textSize="13sp" />
+
+        <RadioButton
+            android:id="@+id/rbWgs84"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/coord_sys_wgs84"
+            android:textSize="13sp" />
+
+        <RadioButton
+            android:id="@+id/rbBd09"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/coord_sys_bd09"
+            android:textSize="13sp" />
+    </RadioGroup>
+
+</LinearLayout>

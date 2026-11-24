@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>虚拟定位地图选点</title>
+<style>
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #eef2f6;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  #map {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    touch-action: none;
+    background-color: #e8edf2;
+    background-image:
+      linear-gradient(to right, rgba(148, 163, 184, 0.16) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(148, 163, 184, 0.16) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+  #tiles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .tile {
+    position: absolute;
+    width: 256px;
+    height: 256px;
+    pointer-events: none;
+    image-rendering: auto;
+  }
+  #pin {
+    position: absolute;
+    width: 36px;
+    height: 46px;
+    margin-left: -18px;
+    margin-top: -42px;
+    pointer-events: none;
+    z-index: 20;
+    display: none;
+    transition: transform 0.12s ease-out;
+  }
+  #pin-pulse {
+    position: absolute;
+    left: 50%;
+    top: 38px;
+    width: 28px;
+    height: 28px;
+    margin-left: -14px;
+    margin-top: -14px;
+    border-radius: 50%;
+    background: rgba(22, 163, 74, 0.25);
+    border: 2px solid rgba(22, 163, 74, 0.75);
+    display: none;
+    animation: pulseRing 1.8s infinite ease-out;
+  }
+  #pin.mocking #pin-pulse {
+    display: block;
+  }
+  @keyframes pulseRing {
+    0% { transform: scale(0.5); opacity: 0.9; }
+    100% { transform: scale(2.1); opacity: 0; }
+  }
+  #crosshair {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 22px;
+    height: 22px;
+    margin-left: -11px;
+    margin-top: -11px;
+    pointer-events: none;
+    z-index: 15;
+    opacity: 0.45;
+  }
+  #crosshair::before,
+  #crosshair::after {
+    content: "";
+    position: absolute;
+    background: #334155;
+  }
+  #crosshair::before {
+    left: 10px;
+    top: 0;
+    width: 2px;
+    height: 22px;
+  }
+  #crosshair::after {
+    left: 0;
+    top: 10px;
+    width: 22px;
+    height: 2px;
+  }
+  .layer-pill {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 30;
+    display: flex;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    padding: 3px;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.16);
+    gap: 2px;
+  }
+  .layer-btn {
+    border: none;
+    background: transparent;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 16px;
+    cursor: pointer;
+  }
+  .layer-btn.active {
+    background: #1d4ed8;
+    color: #ffffff;
+  }
+  .map-controls {
+    position: absolute;
+    right: 12px;
+    bottom: 18px;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+  }
+  .zoom-group {
+    display: flex;
+    flex-direction: column;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.16);
+  }
+  .ctrl-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: transparent;
+    color: #1e293b;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 40px;
+    text-align: center;
+    cursor: pointer;
+  }
+  .ctrl-btn + .ctrl-btn {
+    border-top: 1px solid #e2e8f0;
+  }
+  .ctrl-btn:active {
+    background: #e2e8f0;
+  }
+  .center-pick-btn {
+    border: none;
+    background: rgba(255, 255, 255, 0.96);
+    color: #1d4ed8;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 8px 12px;
+    border-radius: 18px;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.16);
+    cursor: pointer;
+  }
+  .center-pick-btn:active {
+    background: #dbeafe;
+  }
+  #coord-hud {
+    position: absolute;
+    left: 12px;
+    bottom: 18px;
+    z-index: 25;
+    background: rgba(15, 23, 42, 0.72);
+    color: #f8fafc;
+    font-size: 11px;
+    padding: 5px 9px;
+    border-radius: 10px;
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+  }
+</style>
+</head>
+<body>
+<div id="map">
+  <div id="tiles"></div>
+  <div id="crosshair"></div>
+  <div id="pin">
+    <div id="pin-pulse"></div>
+    <svg id="pin-svg" viewBox="0 0 36 46" width="36" height="46" xmlns="http://www.w3.org/2000/svg">
+      <path d="M18 2C9.716 2 3 8.716 3 17c0 10.8 15 26 15 26s15-15.2 15-26C33 8.716 26.284 2 18 2z" fill="#2563eb" stroke="#ffffff" stroke-width="2.5"/>
+      <circle cx="18" cy="17" r="5.5" fill="#ffffff"/>
+    </svg>
+  </div>
+
+  <div class="layer-pill">
+    <button class="layer-btn active" data-layer="amap_vec">高德街道</button>
+    <button class="layer-btn" data-layer="amap_sat">高德卫星</button>
+    <button class="layer-btn" data-layer="osm">OSM全球</button>
+  </div>
+
+  <div class="map-controls">
+    <button class="center-pick-btn" id="btnCenterPick" type="button">选屏幕中心</button>
+    <div class="zoom-group">
+      <button class="ctrl-btn" id="btnZoomIn" type="button" aria-label="放大">+</button>
+      <button class="ctrl-btn" id="btnZoomOut" type="button" aria-label="缩小">−</button>
+    </div>
+  </div>
+
+  <div id="coord-hud">点击地图选点 · 双指缩放</div>
+</div>
+
+<script>
+(function () {
+  var TILE_SIZE = 256;
+  var MIN_ZOOM = 3;
+  var MAX_ZOOM = 18;
+  var MAX_LAT = 85.05112878;
+
+  var LAYERS = {
+    amap_vec: {
+      name: '高德街道',
+      coordType: 'GCJ02',
+      urls: function (z, x, y) {
+        var s = ((Math.abs(x + y) % 4) + 1);
+        return ['https://webrd0' + s + '.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x=' + x + '&y=' + y + '&z=' + z];
+      }
+    },
+    amap_sat: {
+      name: '高德卫星',
+      coordType: 'GCJ02',
+      urls: function (z, x, y) {
+        var s = ((Math.abs(x + y) % 4) + 1);
+        return [
+          'https://webst0' + s + '.is.autonavi.com/appmaptile?style=6&x=' + x + '&y=' + y + '&z=' + z,
+          'https://webst0' + s + '.is.autonavi.com/appmaptile?x=' + x + '&y=' + y + '&z=' + z + '&lang=zh_cn&size=1&scale=1&style=8'
+        ];
+      }
+    },
+    osm: {
+      name: 'OSM全球',
+      coordType: 'WGS84',
+      urls: function (z, x, y) {
+        return ['https://tile.openstreetmap.org/' + z + '/' + x + '/' + y + '.png'];
+      }
+    }
+  };
+
+  var mapEl = document.getElementById('map');
+  var tilesEl = document.getElementById('tiles');
+  var pinEl = document.getElementById('pin');
+  var pinPath = pinEl.querySelector('path');
+  var hudEl = document.getElementById('coord-hud');
+
+  var state = {
+    centerLat: 39.908823,
+    centerLng: 116.397470,
+    zoom: 14,
+    layerKey: 'amap_vec',
+    pinWgs: { lat: 39.907335, lng: 116.391244 },
+    pinGcj: { lat: 39.908823, lng: 116.397470 },
+    hasPin: true,
+    isMocking: false
+  };
+
+  var tileCache = {};
+  var renderScheduled = false;
+
+  function clampLat(lat) {
+    return Math.max(-MAX_LAT, Math.min(MAX_LAT, lat));
+  }
+
+  function normalizeLng(lng) {
+    var x = ((lng + 180) % 360 + 360) % 360 - 180;
+    return x;
+  }
+
+  function latLngToWorld(lat, lng, zoom) {
+    var scale = TILE_SIZE * Math.pow(2, zoom);
+    var sinLat = Math.sin(clampLat(lat) * Math.PI / 180);
+    var x = (lng + 180) / 360 * scale;
+    var y = (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * scale;
+    return { x: x, y: y };
+  }
+
+  function worldToLatLng(wx, wy, zoom) {
+    var scale = TILE_SIZE * Math.pow(2, zoom);
+    var lng = wx / scale * 360 - 180;
+    var n = Math.PI - 2 * Math.PI * wy / scale;
+    var lat = 180 / Math.PI * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+    return { lat: clampLat(lat), lng: normalizeLng(lng) };
+  }
+
+  function getActivePinLatLng() {
+    var layer = LAYERS[state.layerKey];
+    return layer.coordType === 'GCJ02' ? state.pinGcj : state.pinWgs;
+  }
+
+  function scheduleRender() {
+    if (renderScheduled) return;
+    renderScheduled = true;
+    window.requestAnimationFrame(function () {
+      renderScheduled = false;
+      render();
+    });
+  }
+
+  function render() {
+    var width = mapEl.clientWidth || window.innerWidth;
+    var height = mapEl.clientHeight || window.innerHeight;
+    if (width <= 0 || height <= 0) return;
+
+    var baseZoom = Math.round(state.zoom);
+    baseZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, baseZoom));
+    var scaleFactor = Math.pow(2, state.zoom - baseZoom);
+
+    var centerWorld = latLngToWorld(state.centerLat, state.centerLng, baseZoom);
+    var halfW = width / (2 * scaleFactor);
+    var halfH = height / (2 * scaleFactor);
+
+    var minWorldX = centerWorld.x - halfW;
+    var maxWorldX = centerWorld.x + halfW;
+    var minWorldY = centerWorld.y - halfH;
+    var maxWorldY = centerWorld.y + halfH;
+
+    var numTiles = Math.pow(2, baseZoom);
+    var minTileX = Math.floor(minWorldX / TILE_SIZE);
+    var maxTileX = Math.floor(maxWorldX / TILE_SIZE);
+    var minTileY = Math.max(0, Math.floor(minWorldY / TILE_SIZE));
+    var maxTileY = Math.min(numTiles - 1, Math.floor(maxWorldY / TILE_SIZE));
+
+    var layer = LAYERS[state.layerKey];
+    var neededKeys = {};
+
+    for (var tx = minTileX; tx <= maxTileX; tx++) {
+      var wrappedX = ((tx % numTiles) + numTiles) % numTiles;
+      for (var ty = minTileY; ty <= maxTileY; ty++) {
+        var urls = layer.urls(baseZoom, wrappedX, ty);
+        var screenX = (tx * TILE_SIZE - centerWorld.x) * scaleFactor + width / 2;
+        var screenY = (ty * TILE_SIZE - centerWorld.y) * scaleFactor + height / 2;
+        var drawSize = TILE_SIZE * scaleFactor + 0.6;
+
+        for (var u = 0; u < urls.length; u++) {
+          var key = state.layerKey + ':' + baseZoom + ':' + tx + ':' + ty + ':' + u;
+          neededKeys[key] = true;
+          var img = tileCache[key];
+          if (!img) {
+            img = document.createElement('img');
+            img.className = 'tile';
+            img.alt = '';
+            img.decoding = 'async';
+            img.style.opacity = '0';
+            img.onload = (function (el) {
+              return function () { el.style.opacity = '1'; };
+            })(img);
+            img.onerror = (function (el) {
+              return function () { el.style.opacity = '0'; };
+            })(img);
+            img.src = urls[u];
+            tileCache[key] = img;
+            tilesEl.appendChild(img);
+          }
+          img.style.left = Math.round(screenX) + 'px';
+          img.style.top = Math.round(screenY) + 'px';
+          img.style.width = Math.ceil(drawSize) + 'px';
+          img.style.height = Math.ceil(drawSize) + 'px';
+        }
+      }
+    }
+
+    var cacheKeys = Object.keys(tileCache);
+    for (var i = 0; i < cacheKeys.length; i++) {
+      var k = cacheKeys[i];
+      if (!neededKeys[k]) {
+        var oldImg = tileCache[k];
+        if (oldImg && oldImg.parentNode) {
+          oldImg.parentNode.removeChild(oldImg);
+        }
+        delete tileCache[k];
+      }
+    }
+
+    // Update pin position
+    if (state.hasPin) {
+      var pinCoord = getActivePinLatLng();
+      var pinWorld = latLngToWorld(pinCoord.lat, pinCoord.lng, state.zoom);
+      var curCenterWorld = latLngToWorld(state.centerLat, state.centerLng, state.zoom);
+      var px = pinWorld.x - curCenterWorld.x + width / 2;
+      var py = pinWorld.y - curCenterWorld.y + height / 2;
+      pinEl.style.display = 'block';
+      pinEl.style.left = px + 'px';
+      pinEl.style.top = py + 'px';
+      if (state.isMocking) {
+        pinEl.classList.add('mocking');
+        pinPath.setAttribute('fill', '#16a34a');
+      } else {
+        pinEl.classList.remove('mocking');
+        pinPath.setAttribute('fill', '#2563eb');
+      }
+    } else {
+      pinEl.style.display = 'none';
+    }
+
+    hudEl.textContent = layer.name + ' · Z' + state.zoom.toFixed(1) +
+      ' · 中心 ' + state.centerLat.toFixed(4) + ', ' + state.centerLng.toFixed(4);
+  }
+
+  function panByPixels(dx, dy) {
+    var centerWorld = latLngToWorld(state.centerLat, state.centerLng, state.zoom);
+    var next = worldToLatLng(centerWorld.x - dx, centerWorld.y - dy, state.zoom);
+    state.centerLat = next.lat;
+    state.centerLng = next.lng;
+    scheduleRender();
+  }
+
+  function zoomAtPoint(newZoom, anchorX, anchorY) {
+    var clampedZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
+    if (Math.abs(clampedZoom - state.zoom) < 0.001) return;
+
+    var width = mapEl.clientWidth || window.innerWidth;
+    var height = mapEl.clientHeight || window.innerHeight;
+    var oldCenterWorld = latLngToWorld(state.centerLat, state.centerLng, state.zoom);
+    var anchorWorldBefore = {
+      x: oldCenterWorld.x + (anchorX - width / 2),
+      y: oldCenterWorld.y + (anchorY - height / 2)
+    };
+    var anchorLatLng = worldToLatLng(anchorWorldBefore.x, anchorWorldBefore.y, state.zoom);
+
+    state.zoom = clampedZoom;
+    var anchorWorldAfter = latLngToWorld(anchorLatLng.lat, anchorLatLng.lng, state.zoom);
+    var newCenterWorld = {
+      x: anchorWorldAfter.x - (anchorX - width / 2),
+      y: anchorWorldAfter.y - (anchorY - height / 2)
+    };
+    var nextCenter = worldToLatLng(newCenterWorld.x, newCenterWorld.y, state.zoom);
+    state.centerLat = nextCenter.lat;
+    state.centerLng = nextCenter.lng;
+    scheduleRender();
+  }
+
+  function notifyTapAtScreenPoint(clientX, clientY) {
+    var rect = mapEl.getBoundingClientRect();
+    var x = clientX - rect.left;
+    var y = clientY - rect.top;
+    var width = rect.width;
+    var height = rect.height;
+    var centerWorld = latLngToWorld(state.centerLat, state.centerLng, state.zoom);
+    var targetLatLng = worldToLatLng(
+      centerWorld.x + (x - width / 2),
+      centerWorld.y + (y - height / 2),
+      state.zoom
+    );
+    var layer = LAYERS[state.layerKey];
+    if (window.AndroidBridge && typeof window.AndroidBridge.onMapTapped === 'function') {
+      window.AndroidBridge.onMapTapped(targetLatLng.lat, targetLatLng.lng, layer.coordType);
+    }
+  }
+
+  // Touch interaction (pan, tap, two-finger pinch zoom)
+  var touchState = {
+    mode: 'none',
+    startX: 0,
+    startY: 0,
+    lastX: 0,
+    lastY: 0,
+    moved: false,
+    pinchStartDist: 0,
+    pinchStartZoom: 14
+  };
+
+  function distBetween(t1, t2) {
+    var dx = t2.clientX - t1.clientX;
+    var dy = t2.clientY - t1.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  mapEl.addEventListener('touchstart', function (e) {
+    if (e.target.closest('.layer-pill') || e.target.closest('.map-controls')) return;
+    if (e.touches.length === 1) {
+      var t = e.touches[0];
+      touchState.mode = 'pan';
+      touchState.startX = t.clientX;
+      touchState.startY = t.clientY;
+      touchState.lastX = t.clientX;
+      touchState.lastY = t.clientY;
+      touchState.moved = false;
+    } else if (e.touches.length >= 2) {
+      touchState.mode = 'pinch';
+      touchState.moved = true;
+      touchState.pinchStartDist = distBetween(e.touches[0], e.touches[1]);
+      touchState.pinchStartZoom = state.zoom;
+      touchState.lastX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      touchState.lastY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    }
+  }, { passive: true });
+
+  mapEl.addEventListener('touchmove', function (e) {
+    if (touchState.mode === 'pan' && e.touches.length === 1) {
+      var t = e.touches[0];
+      var dx = t.clientX - touchState.lastX;
+      var dy = t.clientY - touchState.lastY;
+      var totalDx = t.clientX - touchState.startX;
+      var totalDy = t.clientY - touchState.startY;
+      if (Math.abs(totalDx) > 8 || Math.abs(totalDy) > 8) {
+        touchState.moved = true;
+      }
+      if (touchState.moved) {
+        panByPixels(dx, dy);
+      }
+      touchState.lastX = t.clientX;
+      touchState.lastY = t.clientY;
+    } else if (touchState.mode === 'pinch' && e.touches.length >= 2) {
+      var dist = distBetween(e.touches[0], e.touches[1]);
+      if (touchState.pinchStartDist > 0) {
+        var midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        var midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        var panDx = midX - touchState.lastX;
+        var panDy = midY - touchState.lastY;
+        panByPixels(panDx, panDy);
+        var rect = mapEl.getBoundingClientRect();
+        var nextZoom = touchState.pinchStartZoom + Math.log(dist / touchState.pinchStartDist) / Math.LN2;
+        zoomAtPoint(nextZoom, midX - rect.left, midY - rect.top);
+        touchState.lastX = midX;
+        touchState.lastY = midY;
+      }
+    }
+    e.preventDefault();
+  }, { passive: false });
+
+  mapEl.addEventListener('touchend', function (e) {
+    if (touchState.mode === 'pan' && !touchState.moved && e.changedTouches.length === 1) {
+      var t = e.changedTouches[0];
+      notifyTapAtScreenPoint(t.clientX, t.clientY);
+    }
+    if (e.touches.length === 0) {
+      touchState.mode = 'none';
+    } else if (e.touches.length === 1) {
+      touchState.mode = 'pan';
+      touchState.lastX = e.touches[0].clientX;
+      touchState.lastY = e.touches[0].clientY;
+      touchState.moved = true;
+    }
+  }, { passive: true });
+
+  // Mouse interaction fallback (emulator / desktop testing)
+  var mouseDown = false;
+  var mouseMoved = false;
+  var mouseStartX = 0;
+  var mouseStartY = 0;
+  var mouseLastX = 0;
+  var mouseLastY = 0;
+
+  mapEl.addEventListener('mousedown', function (e) {
+    if (e.target.closest('.layer-pill') || e.target.closest('.map-controls')) return;
+    mouseDown = true;
+    mouseMoved = false;
+    mouseStartX = e.clientX;
+    mouseStartY = e.clientY;
+    mouseLastX = e.clientX;
+    mouseLastY = e.clientY;
+  });
+
+  window.addEventListener('mousemove', function (e) {
+    if (!mouseDown) return;
+    var dx = e.clientX - mouseLastX;
+    var dy = e.clientY - mouseLastY;
+    if (Math.abs(e.clientX - mouseStartX) > 6 || Math.abs(e.clientY - mouseStartY) > 6) {
+      mouseMoved = true;
+    }
+    if (mouseMoved) {
+      panByPixels(dx, dy);
+    }
+    mouseLastX = e.clientX;
+    mouseLastY = e.clientY;
+  });
+
+  window.addEventListener('mouseup', function (e) {
+    if (!mouseDown) return;
+    mouseDown = false;
+    if (!mouseMoved) {
+      notifyTapAtScreenPoint(e.clientX, e.clientY);
+    }
+  });
+
+  mapEl.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    var rect = mapEl.getBoundingClientRect();
+    var delta = e.deltaY < 0 ? 0.8 : -0.8;
+    zoomAtPoint(state.zoom + delta, e.clientX - rect.left, e.clientY - rect.top);
+  }, { passive: false });
+
+  // Layer switching
+  var layerBtns = document.querySelectorAll('.layer-btn');
+  for (var b = 0; b < layerBtns.length; b++) {
+    layerBtns[b].addEventListener('click', function () {
+      var nextKey = this.getAttribute('data-layer');
+      if (!LAYERS[nextKey] || nextKey === state.layerKey) return;
+      state.layerKey = nextKey;
+      for (var j = 0; j < layerBtns.length; j++) {
+        layerBtns[j].classList.toggle('active', layerBtns[j].getAttribute('data-layer') === nextKey);
+      }
+      scheduleRender();
+    });
+  }
+
+  document.getElementById('btnZoomIn').addEventListener('click', function () {
+    var width = mapEl.clientWidth || window.innerWidth;
+    var height = mapEl.clientHeight || window.innerHeight;
+    zoomAtPoint(Math.round(state.zoom) + 1, width / 2, height / 2);
+  });
+
+  document.getElementById('btnZoomOut').addEventListener('click', function () {
+    var width = mapEl.clientWidth || window.innerWidth;
+    var height = mapEl.clientHeight || window.innerHeight;
+    zoomAtPoint(Math.round(state.zoom) - 1, width / 2, height / 2);
+  });
+
+  document.getElementById('btnCenterPick').addEventListener('click', function () {
+    var layer = LAYERS[state.layerKey];
+    if (window.AndroidBridge && typeof window.AndroidBridge.onMapTapped === 'function') {
+      window.AndroidBridge.onMapTapped(state.centerLat, state.centerLng, layer.coordType);
+    }
+  });
+
+  window.addEventListener('resize', scheduleRender);
+
+  // Native Kotlin -> JS API
+  window.updatePinFromNative = function (wgsLat, wgsLng, gcjLat, gcjLng, centerMap, isMocking) {
+    state.pinWgs = { lat: Number(wgsLat), lng: Number(wgsLng) };
+    state.pinGcj = { lat: Number(gcjLat), lng: Number(gcjLng) };
+    state.hasPin = true;
+    state.isMocking = Boolean(isMocking);
+    if (centerMap) {
+      var target = getActivePinLatLng();
+      state.centerLat = target.lat;
+      state.centerLng = target.lng;
+      if (state.zoom < 13) state.zoom = 15;
+    }
+    scheduleRender();
+  };
+
+  render();
+  if (window.AndroidBridge && typeof window.AndroidBridge.onMapReady === 'function') {
+    window.AndroidBridge.onMapReady();
+  }
+})();
+</script>
+</body>
+</html>
